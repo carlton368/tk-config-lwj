@@ -72,6 +72,12 @@ class BasicSceneCollector(HookBaseClass):
         adding/removing/modifying values.
         """
 
+        # Set WONJIN_COLLECTOR environment variable
+        if 'WONJIN_COLLECTOR' in os.environ:
+            os.environ['WONJIN_COLLECTOR'] += os.pathsep + message
+        else:
+            os.environ['WONJIN_COLLECTOR'] = message
+
         if not hasattr(self, "_common_file_info"):
 
             # do this once to avoid unnecessary processing
@@ -195,15 +201,7 @@ class BasicSceneCollector(HookBaseClass):
 
         :returns: The main item that was created, or None if no item was created
             for the supplied path
-        """
-        # Set WONJIN_COLLECTOR environment variable
-        if 'WONJIN_COLLECTOR' in os.environ:
-            os.environ['WONJIN_COLLECTOR'] += os.pathsep + 'WONJIN_COLLECTOR'
-        else:
-            os.environ['WONJIN_COLLECTOR'] = 'WONJIN_COLLECTOR'
-        
-        self.logger.debug("Updated WONJIN_COLLECTOR environment variable")
-        
+        """    
         publish_templates_setting = settings.get("Publish Templates")
         publish_templates = {}
         if publish_templates_setting:
