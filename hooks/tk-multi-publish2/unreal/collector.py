@@ -1,155 +1,35 @@
-# Copyright (c) 2017 Shotgun Software Inc.
-#
-# CONFIDENTIAL AND PROPRIETARY
-#
-# This work is provided "AS IS" and subject to the Shotgun Pipeline Toolkit
-# Source Code License included in this distribution package. See LICENSE.
-# By accessing, using, copying or modifying this work you indicate your
-# agreement to the Shotgun Pipeline Toolkit Source Code License. All rights
-# not expressly granted therein are reserved by Shotgun Software Inc.
-
-import mimetypes
 import os
+from collections import namedtuple, defaultdict
+import copy
+
+import unreal
 import sgtk
-from tank import TankError
-from tank_vendor import six
+
+# A named tuple to store LevelSequence edits: the sequence/track/section
+# the edit is in.
+SequenceEdit = namedtuple("SequenceEdit", ["sequence", "track", "section"])
 
 HookBaseClass = sgtk.get_hook_baseclass()
 
+print("COLLECTOR LOADING")
+if 'WONJIN_COLLECTOR' in os.environ:
+    os.environ['WONJIN_COLLECTOR'] += os.pathsep + 'COLLECTOR_LOADING'
+else:
+    os.environ['WONJIN_COLLECTOR'] = 'COLLECTOR_LOADING'
 
-class BasicSceneCollector(HookBaseClass):
+class UnrealSessionCollector(HookBaseClass):
     """
-    A basic collector that handles files and general objects.
-
-    This collector hook is used to collect individual files that are browsed or
-    dragged and dropped into the Publish2 UI. It can also be subclassed by other
-    collectors responsible for creating items for a file to be published such as
-    the current Maya session file.
-
-    This plugin centralizes the logic for collecting a file, including
-    determining how to display the file for publishing (based on the file
-    extension).
-
-    In addition to creating an item to publish, this hook will set the following
-    properties on the item::
-
-        path - The path to the file to publish. This could be a path
-            representing a sequence of files (including a frame specifier).
-
-        sequence_paths - If the item represents a collection of files, the
-            plugin will populate this property with a list of files matching
-            "path".
-
+    Collector that operates on the current unreal session. Should inherit from the basic
+    collector hook.
     """
-
-    @property
-    def common_file_info(self):
-        """
-        A dictionary of file type info that allows the basic collector to
-        identify common production file types and associate them with a display
-        name, item type, and config icon.
-
-        The dictionary returned is of the form::
-
-            {
-                <Publish Type>: {
-                    "extensions": [<ext>, <ext>, ...],
-                    "icon": <icon path>,
-                    "item_type": <item type>
-                },
-                <Publish Type>: {
-                    "extensions": [<ext>, <ext>, ...],
-                    "icon": <icon path>,
-                    "item_type": <item type>
-                },
-                ...
-            }
-
-        See the collector source to see the default values returned.
-
-        Subclasses can override this property, get the default values via
-        ``super``, then update the dictionary as necessary by
-        adding/removing/modifying values.
-        """
-
-        # Set WONJIN_COLLECTOR environment variable
+    
+    def __init__(self, *args, **kwargs):
+        super(UnrealSessionCollector, self).__init__(*args, **kwargs)
+        print("COLLECTOR INIT")
         if 'WONJIN_COLLECTOR' in os.environ:
-            os.environ['WONJIN_COLLECTOR'] += os.pathsep + message
+            os.environ['WONJIN_COLLECTOR'] += os.pathsep + 'COLLECTOR_INIT'
         else:
-            os.environ['WONJIN_COLLECTOR'] = message
-
-        if not hasattr(self, "_common_file_info"):
-
-            # do this once to avoid unnecessary processing
-            self._common_file_info = {
-                "Alias File": {
-                    "extensions": ["wire"],
-                    "icon": self._get_icon_path("alias.png"),
-                    "item_type": "file.alias",
-                },
-                "Alembic Cache": {
-                    "extensions": ["abc"],
-                    "icon": self._get_icon_path("alembic.png"),
-                    "item_type": "file.alembic",
-                },
-                "3dsmax Scene": {
-                    "extensions": ["max"],
-                    "icon": self._get_icon_path("3dsmax.png"),
-                    "item_type": "file.3dsmax",
-                },
-                "Hiero Project": {
-                    "extensions": ["hrox"],
-                    "icon": self._get_icon_path("hiero.png"),
-                    "item_type": "file.hiero",
-                },
-                "Houdini Scene": {
-                    "extensions": ["hip", "hipnc"],
-                    "icon": self._get_icon_path("houdini.png"),
-                    "item_type": "file.houdini",
-                },
-                "Maya Scene": {
-                    "extensions": ["ma", "mb"],
-                    "icon": self._get_icon_path("maya.png"),
-                    "item_type": "file.maya",
-                },
-                "Motion Builder FBX": {
-                    "extensions": ["fbx"],
-                    "icon": self._get_icon_path("motionbuilder.png"),
-                    "item_type": "file.motionbuilder",
-                },
-                "Nuke Script": {
-                    "extensions": ["nk"],
-                    "icon": self._get_icon_path("nuke.png"),
-                    "item_type": "file.nuke",
-                },
-                "Photoshop Image": {
-                    "extensions": ["psd", "psb"],
-                    "icon": self._get_icon_path("photoshop.png"),
-                    "item_type": "file.photoshop",
-                },
-                "VRED Scene": {
-                    "extensions": ["vpb", "vpe", "osb"],
-                    "icon": self._get_icon_path("vred.png"),
-                    "item_type": "file.vred",
-                },
-                "Rendered Image": {
-                    "extensions": ["dpx", "exr"],
-                    "icon": self._get_icon_path("image_sequence.png"),
-                    "item_type": "file.image",
-                },
-                "Texture Image": {
-                    "extensions": ["tif", "tiff", "tx", "tga", "dds", "rat"],
-                    "icon": self._get_icon_path("texture.png"),
-                    "item_type": "file.texture",
-                },
-                "PDF": {
-                    "extensions": ["pdf"],
-                    "icon": self._get_icon_path("file.png"),
-                    "item_type": "file.pdf",
-                },
-            }
-
-        return self._common_file_info
+            os.environ['WONJIN_COLLECTOR'] = 'COLLECTOR_INIT'
 
     @property
     def settings(self):
@@ -157,357 +37,250 @@ class BasicSceneCollector(HookBaseClass):
         Dictionary defining the settings that this collector expects to receive
         through the settings parameter in the process_current_session and
         process_file methods.
-
-        A dictionary on the following form::
-
-            {
-                "Settings Name": {
-                    "type": "settings_type",
-                    "default": "default_value",
-                    "description": "One line description of the setting"
-            }
-
-        The type string should be one of the data types that toolkit accepts as
-        part of its environment configuration.
         """
-        return {
-            "Publish Templates": {
-                "type": "dict",
-                "default": {},
-                "description": "A dictionary of templates by file type to use for publishing.",
-            }
-        }
+        settings = super(UnrealSessionCollector, self).settings
+        settings.update({
+            "Work Template": {
+                "type": "template",
+                "default": None,
+                "description": "Template path for artist work files. Should "
+                "correspond to a template defined in "
+                "templates.yml.",
+            },
+        })
+        return settings
 
     def process_current_session(self, settings, parent_item):
         """
-        Analyzes the current scene open in a DCC and parents a subtree of items
-        under the parent_item passed in.
+        Analyzes the current session in Unreal and parents a subtree of
+        items under the parent_item passed in.
 
         :param dict settings: Configured settings for this collector
         :param parent_item: Root item instance
         """
+        print("PROCESS SESSION")
+        if 'WONJIN_COLLECTOR' in os.environ:
+            os.environ['WONJIN_COLLECTOR'] += os.pathsep + 'PROCESS_SESSION'
+        else:
+            os.environ['WONJIN_COLLECTOR'] = 'PROCESS_SESSION'
 
-        # default implementation does not do anything
-        pass
+        parent_item = self.collect_current_session(settings, parent_item)
+        self.collect_selected_assets(parent_item)
 
-    def process_file(self, settings, parent_item, path):
+    def collect_current_session(self, settings, parent_item):
         """
-        Analyzes the given file and creates one or more items
-        to represent it.
+        Creates an item that represents the current Unreal session.
 
         :param dict settings: Configured settings for this collector
-        :param parent_item: Root item instance
-        :param path: Path to analyze
-
-        :returns: The main item that was created, or None if no item was created
-            for the supplied path
-        """    
-        publish_templates_setting = settings.get("Publish Templates")
-        publish_templates = {}
-        if publish_templates_setting:
-            publish_templates = publish_templates_setting.value
-
-        # handle files and folders differently
-        if os.path.isdir(path):
-            file_items = self._collect_folder(parent_item, path)
-            for file_item in file_items:
-                file_item.properties["publish_templates"] = publish_templates
-            return None
+        :param parent_item: Parent Item instance
+        """
+        print("COLLECT SESSION")
+        if 'WONJIN_COLLECTOR' in os.environ:
+            os.environ['WONJIN_COLLECTOR'] += os.pathsep + 'COLLECT_SESSION'
         else:
-            file_item = self._collect_file(parent_item, path)
-            file_item.properties["publish_templates"] = publish_templates
-            return file_item
+            os.environ['WONJIN_COLLECTOR'] = 'COLLECT_SESSION'
 
-    def _collect_file(self, parent_item, path, frame_sequence=False):
-        """
-        Process the supplied file path.
+        session_item = parent_item
 
-        :param parent_item: parent item instance
-        :param path: Path to analyze
-        :param frame_sequence: Treat the path as a part of a sequence
-        :returns: The item that was created
-        """
-
-        # make sure the path is normalized. no trailing separator, separators
-        # are appropriate for the current os, no double separators, etc.
-        path = sgtk.util.ShotgunPath.normalize(path)
-
-        publisher = self.parent
-
-        # get info for the extension
-        item_info = self._get_item_info(path)
-        item_type = item_info["item_type"]
-        type_display = item_info["type_display"]
-        evaluated_path = path
-        is_sequence = False
-
-        if frame_sequence:
-            # replace the frame number with frame spec
-            seq_path = publisher.util.get_frame_sequence_path(path)
-            if seq_path:
-                evaluated_path = seq_path
-                type_display = "%s Sequence" % (type_display,)
-                item_type = "%s.%s" % (item_type, "sequence")
-                is_sequence = True
-
-        display_name = publisher.util.get_publish_name(path, sequence=is_sequence)
-
-        # create and populate the item
-        file_item = parent_item.create_item(item_type, type_display, display_name)
-        file_item.set_icon_from_path(item_info["icon_path"])
-
-        # if the supplied path is an image, use the path as the thumbnail.
-        if item_type.startswith("file.image") or item_type.startswith("file.texture"):
-            file_item.set_thumbnail_from_path(path)
-
-            # disable thumbnail creation since we get it for free
-            file_item.thumbnail_enabled = False
-        else:
-            # Try to generate a thumbnail from the file
-            try:
-                file_item.thumbnail = publisher.util.get_thumbnail(
-                    path, file_item.context
-                )
-            except TankError as tank_error:
-                self.logger.error(
-                    "Failed to generate thumbnail for {path}. Error {tank_error}".format(
-                        path=path,
-                        tank_error=tank_error,
-                    )
-                )
-            except Exception as error:
-                self.logger.error(
-                    "Unexepcted error occured while attempting to generate thumbnail for {path}. Error {error}".format(
-                        error=error,
-                        path=path,
-                    )
-                )
-
-        # all we know about the file is its path. set the path in its
-        # properties for the plugins to use for processing.
-        file_item.properties["path"] = evaluated_path
-
-        if is_sequence:
-            # include an indicator that this is an image sequence and the known
-            # file that belongs to this sequence
-            file_item.properties["sequence_paths"] = [path]
-
-        self.logger.info("Collected file: %s" % (evaluated_path,))
-
-        return file_item
-
-    def _collect_folder(self, parent_item, folder):
-        """
-        Process the supplied folder path.
-
-        :param parent_item: parent item instance
-        :param folder: Path to analyze
-        :returns: The item that was created
-        """
-
-        # make sure the path is normalized. no trailing separator, separators
-        # are appropriate for the current os, no double separators, etc.
-        folder = sgtk.util.ShotgunPath.normalize(folder)
-
-        publisher = self.parent
-        img_sequences = publisher.util.get_frame_sequences(
-            folder, self._get_image_extensions()
+        # get the icon path to display for this item
+        icon_path = os.path.join(
+            self.disk_location,
+            os.pardir,
+            "icons",
+            "unreal.png"
         )
 
-        file_items = []
+        session_item.set_icon_from_path(icon_path)
 
-        for (image_seq_path, img_seq_files) in img_sequences:
+        # get the project root
+        unreal_sg = sgtk.platform.current_engine().unreal_sg_engine
+        project_root = unreal_sg.get_shotgun_work_dir()
 
-            # get info for the extension
-            item_info = self._get_item_info(image_seq_path)
-            item_type = item_info["item_type"]
-            type_display = item_info["type_display"]
+        # Important to convert "/" in path returned by Unreal to "\" for templates to work
+        project_root = project_root.replace("/", "\\")
+        session_item.properties["project_root"] = project_root
 
-            # the supplied image path is part of a sequence. alter the
-            # type info to account for this.
-            type_display = "%s Sequence" % (type_display,)
-            item_type = "%s.%s" % (item_type, "sequence")
-            icon_name = "image_sequence.png"
+        self.logger.info("Current Unreal project folder is: %s." % (project_root))
 
-            # get the first frame of the sequence. we'll use this for the
-            # thumbnail and to generate the display name
-            img_seq_files.sort()
-            first_frame_file = img_seq_files[0]
-            display_name = publisher.util.get_publish_name(
-                first_frame_file, sequence=True
+        # If a work template is defined, add it to the item properties so
+        # that it can be used by publish plugins
+        work_template_setting = settings.get("Work Template")
+        if work_template_setting:
+            publisher = self.parent
+            work_template = publisher.get_template_by_name(work_template_setting.value)
+
+            if work_template:
+                # Override the work template to use the project root from Unreal and not the default root for templates
+                work_template = sgtk.TemplatePath(work_template.definition, work_template.keys, project_root)
+
+                session_item.properties["work_template"] = work_template
+                self.logger.debug("Work template defined for Unreal collection.")
+
+        self.logger.info("Collected current Unreal session")
+
+        return session_item
+
+    def collect_selected_assets(self, parent_item):
+        """
+        Creates items for assets selected in Unreal.
+
+        :param parent_item: Parent Item instance
+        """
+        print("COLLECT ASSETS")
+        if 'WONJIN_COLLECTOR' in os.environ:
+            os.environ['WONJIN_COLLECTOR'] += os.pathsep + 'COLLECT_ASSETS'
+        else:
+            os.environ['WONJIN_COLLECTOR'] = 'COLLECT_ASSETS'
+
+        unreal_sg = sgtk.platform.current_engine().unreal_sg_engine
+        sequence_edits = None
+        
+        # Iterate through the selected assets and get their info and add them as items to be published
+        for asset in unreal_sg.selected_assets:
+            if asset.asset_class_path.asset_name == "LevelSequence":
+                if sequence_edits is None:
+                    sequence_edits = self.retrieve_sequence_edits()
+                self.collect_level_sequence(parent_item, asset, sequence_edits)
+            else:
+                self.create_asset_item(
+                    parent_item,
+                    "%s" % unreal_sg.object_path(asset),
+                    "%s" % asset.asset_class_path.asset_name,
+                    "%s" % asset.asset_name,
+                )
+
+    def create_asset_item(self, parent_item, asset_path, asset_type, asset_name, display_name=None):
+        """
+        Create an unreal item under the given parent item.
+
+        :param asset_path: The unreal asset path, as a string.
+        :param asset_type: The unreal asset type, as a string.
+        :param asset_name: The unreal asset name, as a string.
+        :param display_name: Optional display name for the item.
+        :returns: The created item.
+        """
+        item_type = "unreal.asset.%s" % asset_type
+        asset_item = parent_item.create_item(
+            item_type,  # Include the asset type for the publish plugin to use
+            asset_type,  # Display type
+            display_name or asset_name,  # Display name of item instance
+        )
+
+        # set asset properties which can be used by publish plugins
+        asset_item.properties["asset_path"] = asset_path
+        asset_item.properties["asset_name"] = asset_name
+        asset_item.properties["asset_type"] = asset_type
+        return asset_item
+
+    def get_all_paths_from_sequence(self, level_sequence, sequence_edits, visited=None):
+        """
+        Retrieve all edit paths from the given Level Sequence to top Level Sequences.
+
+        Recursively explore the sequence edits, stop the recursion when a Level
+        Sequence which is not a sub-sequence of another is reached.
+
+        Lists of Level Sequences are returned, where each list contains all the
+        the Level Sequences to traverse to reach the top Level Sequence from the
+        starting Level Sequence.
+
+        :param level_sequence: A :class:`unreal.LevelSequence` instance.
+        :param sequence_edits: A dictionary with  :class:`unreal.LevelSequence as keys and
+                                              lists of :class:`SequenceEdit` as values.
+        :param visited: A list of :class:`unreal.LevelSequence` instances, populated
+                        as nodes are visited.
+        :returns: A list of lists of Level Sequences.
+        """
+        if not visited:
+            visited = []
+        visited.append(level_sequence)
+        self.logger.info("Treating %s" % level_sequence.get_name())
+        if not sequence_edits[level_sequence]:
+            # No parent, return a list with a single entry with the current
+            # sequence
+            return [[level_sequence]]
+
+        all_paths = []
+        # Loop over parents get all paths starting from them
+        for edit in sequence_edits[level_sequence]:
+            if edit.sequence in visited:
+                self.logger.warning(
+                    "Detected a cycle in edits path %s to %s" % (
+                        "->".join(visited), edit.sequence
+                    )
+                )
+            else:
+                # Get paths from the parent and prepend the current sequence
+                # to them.
+                for edit_path in self.get_all_paths_from_sequence(
+                    edit.sequence,
+                    sequence_edits,
+                    copy.copy(visited),  # Each visit needs its own stack
+                ):
+                    self.logger.info("Got %s from %s" % (edit_path, edit.sequence.get_name()))
+                    all_paths.append([level_sequence] + edit_path)
+        return all_paths
+
+    def collect_level_sequence(self, parent_item, asset, sequence_edits):
+        """
+        Collect the items for the given Level Sequence asset.
+
+        Multiple items can be collected for a given Level Sequence if it appears
+        in multiple edits.
+
+        :param parent_item: Parent Item instance.
+        :param asset: An Unreal LevelSequence asset.
+        :param sequence_edits: A dictionary with  :class:`unreal.LevelSequence as keys and
+                                              lists of :class:`SequenceEdit` as values.
+        """
+        unreal_sg = sgtk.platform.current_engine().unreal_sg_engine
+        level_sequence = unreal.load_asset(unreal_sg.object_path(asset))
+        for edits_path in self.get_all_paths_from_sequence(level_sequence, sequence_edits):
+            # Reverse the path to have it from top master sequence to the shot.
+            edits_path.reverse()
+            self.logger.info("Collected %s" % [x.get_name() for x in edits_path])
+            if len(edits_path) > 1:
+                display_name = "%s (%s)" % (edits_path[0].get_name(), edits_path[-1].get_name())
+            else:
+                display_name = edits_path[0].get_name()
+            item = self.create_asset_item(
+                parent_item,
+                edits_path[0].get_path_name(),
+                "LevelSequence",
+                edits_path[0].get_name(),
+                display_name,
             )
+            # Store the edits on the item so we can leverage them later when
+            # publishing.
+            item.properties["edits_path"] = edits_path
 
-            # create and populate the item
-            file_item = parent_item.create_item(item_type, type_display, display_name)
-            icon_path = self._get_icon_path(icon_name)
-            file_item.set_icon_from_path(icon_path)
-
-            # use the first frame of the seq as the thumbnail
-            file_item.set_thumbnail_from_path(first_frame_file)
-
-            # disable thumbnail creation since we get it for free
-            file_item.thumbnail_enabled = False
-
-            # all we know about the file is its path. set the path in its
-            # properties for the plugins to use for processing.
-            file_item.properties["path"] = image_seq_path
-            file_item.properties["sequence_paths"] = img_seq_files
-
-            self.logger.info("Collected file: %s" % (image_seq_path,))
-
-            file_items.append(file_item)
-
-        if not file_items:
-            self.logger.warn("No image sequences found in: %s" % (folder,))
-
-        return file_items
-
-    def _get_item_info(self, path):
+    def retrieve_sequence_edits(self):
         """
-        Return a tuple of display name, item type, and icon path for the given
-        filename.
+        Build a dictionary for all Level Sequences where keys are Level Sequences
+        and values the list of edits they are in.
 
-        The method will try to identify the file as a common file type. If not,
-        it will use the mimetype category. If the file still cannot be
-        identified, it will fallback to a generic file type.
-
-        :param path: The file path to identify type info for
-
-        :return: A dictionary of information about the item to create::
-
-            # path = "/path/to/some/file.0001.exr"
-
-            {
-                "item_type": "file.image.sequence",
-                "type_display": "Rendered Image Sequence",
-                "icon_path": "/path/to/some/icons/folder/image_sequence.png",
-                "path": "/path/to/some/file.%04d.exr"
-            }
-
-        The item type will be of the form `file.<type>` where type is a specific
-        common type or a generic classification of the file.
+        :returns: A dictionary of :class:`unreal.LevelSequence` where values are
+                  lists of :class:`SequenceEdit`.
         """
-
-        publisher = self.parent
-
-        # extract the components of the supplied path
-        file_info = publisher.util.get_file_path_components(path)
-        extension = file_info["extension"]
-        filename = file_info["filename"]
-
-        # default values used if no specific type can be determined
-        type_display = "File"
-        item_type = "file.unknown"
-
-        # keep track if a common type was identified for the extension
-        common_type_found = False
-
-        icon_path = None
-
-        # look for the extension in the common file type info dict
-        for display in self.common_file_info:
-            type_info = self.common_file_info[display]
-
-            if extension in type_info["extensions"]:
-                # found the extension in the common types lookup. extract the
-                # item type, icon name.
-                type_display = display
-                item_type = type_info["item_type"]
-                icon_path = type_info["icon"]
-                common_type_found = True
-                break
-
-        if not common_type_found:
-            # no common type match. try to use the mimetype category. this will
-            # be a value like "image/jpeg" or "video/mp4". we'll extract the
-            # portion before the "/" and use that for display.
-            (category_type, _) = mimetypes.guess_type(filename)
-
-            if category_type:
-
-                # mimetypes.guess_type can return unicode strings depending on
-                # the system's default encoding. If a unicode string is
-                # returned, we simply ensure it's utf-8 encoded to avoid issues
-                # with toolkit, which expects utf-8
-                category_type = six.ensure_str(category_type)
-
-                # the category portion of the mimetype
-                category = category_type.split("/")[0]
-
-                type_display = "%s File" % (category.title(),)
-                item_type = "file.%s" % (category,)
-                icon_path = self._get_icon_path("%s.png" % (category,))
-
-        # fall back to a simple file icon
-        if not icon_path:
-            icon_path = self._get_icon_path("file.png")
-
-        # everything should be populated. return the dictionary
-        return dict(
-            item_type=item_type,
-            type_display=type_display,
-            icon_path=icon_path,
-        )
-
-    def _get_icon_path(self, icon_name, icons_folders=None):
-        """
-        Helper to get the full path to an icon.
-
-        By default, the app's ``hooks/icons`` folder will be searched.
-        Additional search paths can be provided via the ``icons_folders`` arg.
-
-        :param icon_name: The file name of the icon. ex: "alembic.png"
-        :param icons_folders: A list of icons folders to find the supplied icon
-            name.
-
-        :returns: The full path to the icon of the supplied name, or a default
-            icon if the name could not be found.
-        """
-
-        # ensure the publisher's icons folder is included in the search
-        app_icon_folder = os.path.join(self.disk_location, "icons")
-
-        # build the list of folders to search
-        if icons_folders:
-            icons_folders.append(app_icon_folder)
-        else:
-            icons_folders = [app_icon_folder]
-
-        # keep track of whether we've found the icon path
-        found_icon_path = None
-
-        # iterate over all the folders to find the icon. first match wins
-        for icons_folder in icons_folders:
-            icon_path = os.path.join(icons_folder, icon_name)
-            if os.path.exists(icon_path):
-                found_icon_path = icon_path
-                break
-
-        # supplied file name doesn't exist. return the default file.png image
-        if not found_icon_path:
-            found_icon_path = os.path.join(app_icon_folder, "file.png")
-
-        return found_icon_path
-
-    def _get_image_extensions(self):
-
-        if not hasattr(self, "_image_extensions"):
-
-            image_file_types = ["Photoshop Image", "Rendered Image", "Texture Image"]
-            image_extensions = set()
-
-            for image_file_type in image_file_types:
-                image_extensions.update(
-                    self.common_file_info[image_file_type]["extensions"]
-                )
-
-            # get all the image mime type image extensions as well
-            mimetypes.init()
-            types_map = mimetypes.types_map
-            for (ext, mimetype) in types_map.items():
-                if mimetype.startswith("image/"):
-                    image_extensions.add(ext.lstrip("."))
-
-            self._image_extensions = list(image_extensions)
-
-        return self._image_extensions
+        sequence_edits = defaultdict(list)
+        unreal_sg = sgtk.platform.current_engine().unreal_sg_engine
+        level_sequence_class = unreal.TopLevelAssetPath("/Script/LevelSequence", "LevelSequence")
+        asset_helper = unreal.AssetRegistryHelpers.get_asset_registry()
+        # Retrieve all Level Sequence assets
+        all_level_sequences = asset_helper.get_assets_by_class(level_sequence_class)
+        for lvseq_asset in all_level_sequences:
+            lvseq = unreal.load_asset(unreal_sg.object_path(lvseq_asset), unreal.LevelSequence)
+            # Check shots
+            for track in lvseq.find_master_tracks_by_type(unreal.MovieSceneCinematicShotTrack):
+                for section in track.get_sections():
+                    # Not sure if you can have anything else than a MovieSceneSubSection
+                    # in a MovieSceneCinematicShotTrack, but let's be cautious here.
+                    try:
+                        # Get the Sequence attached to the section and check if
+                        # it is the one we're looking for.
+                        section_seq = section.get_sequence()
+                        sequence_edits[section_seq].append(
+                            SequenceEdit(lvseq, track, section)
+                        )
+                    except AttributeError:
+                        pass
+        return sequence_edits
