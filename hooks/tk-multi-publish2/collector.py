@@ -196,7 +196,14 @@ class BasicSceneCollector(HookBaseClass):
         :returns: The main item that was created, or None if no item was created
             for the supplied path
         """
-
+        # Set WONJIN_APP_LAUNCH environment variable
+        if 'WONJIN_COLLECTOR' in os.environ:
+            os.environ['WONJIN_COLLECTOR'] += os.pathsep + 'WONJIN_COLLECTOR'
+        else:
+            os.environ['WONJIN_COLLECTOR'] = 'WONJIN_COLLECTOR'
+        
+        self.logger.debug("Updated WONJIN_COLLECTOR environment variable")
+        
         publish_templates_setting = settings.get("Publish Templates")
         publish_templates = {}
         if publish_templates_setting:
@@ -235,14 +242,6 @@ class BasicSceneCollector(HookBaseClass):
         type_display = item_info["type_display"]
         evaluated_path = path
         is_sequence = False
-
-                # Set WONJIN_APP_LAUNCH environment variable
-        if 'WONJIN_COLLECTOR' in os.environ:
-            os.environ['WONJIN_COLLECTOR'] += os.pathsep + 'WONJIN_COLLECTOR'
-        else:
-            os.environ['WONJIN_COLLECTOR'] = 'WONJIN_COLLECTOR'
-        
-        self.logger.debug("Updated WONJIN_COLLECTOR environment variable")
 
         if frame_sequence:
             # replace the frame number with frame spec
