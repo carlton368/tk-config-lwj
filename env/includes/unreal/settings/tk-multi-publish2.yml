@@ -63,7 +63,7 @@ settings.tk-multi-publish2.unreal.shot_step:
   location: "@apps.tk-multi-publish2.location"
 
 settings.tk-multi-publish2.unreal.project:
-  collector: "{config}/tk-multi-publish2/unreal/collector.py:{engine}/tk-multi-publish2/basic/collector.py"
+  collector: "{self}/collector.py:{engine}/tk-multi-publish2/basic/collector.py"
   publish_plugins:
   - name: Publish to ShotGrid
     hook: "{config}/tk-multi-publish2/unreal/publish_file.py"

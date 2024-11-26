@@ -18,6 +18,11 @@ from tank.errors import TankError
 
 HookBaseClass = sgtk.get_hook_baseclass()
 
+print("PUBLISH_FILE LOADING")
+if 'WONJIN_PUBLISH_FILE' in os.environ:
+    os.environ['WONJIN_PUBLISH_FILE'] += os.pathsep + 'PUBLISH_FILE_LOADING'
+else:
+    os.environ['WONJIN_PUBLISH_FILE'] = 'PUBLISH_FILE_LOADING'
 
 class BasicFilePublishPlugin(HookBaseClass):
     """
@@ -113,7 +118,13 @@ class BasicFilePublishPlugin(HookBaseClass):
     ``sg_publish_data`` from the item after calling the base class ``publish``
     method in your plugin subclass.
     """
-
+    def __init__(self, *args, **kwargs):
+        super(UnrealSessionCollector, self).__init__(*args, **kwargs)
+        print("PUBLISH_FILE INIT")
+        if 'WONJIN_PUBLISH_FILE' in os.environ:
+            os.environ['WONJIN_PUBLISH_FILE'] += os.pathsep + 'PUBLISH_FILE_INIT'
+        else:
+            os.environ['WONJIN_PUBLISH_FILE'] = 'PUBLISH_FILE_INIT'
     ############################################################################
     # standard publish plugin properties
 
