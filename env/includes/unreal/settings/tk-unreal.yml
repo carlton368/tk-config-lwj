@@ -29,7 +29,7 @@ settings.tk-unreal.asset:
   automatic_context_switch: false
   menu_favourites:
   - {app_instance: tk-multi-publish2, name: Publish...}
-  location: "@engines.tk-nuke.location"
+  location: "@engines.tk-unreal.location"
 
 settings.tk-unreal.asset_step:
   apps:
@@ -46,9 +46,9 @@ settings.tk-unreal.asset_step:
   automatic_context_switch: false
   menu_favourites:
   - {app_instance: tk-multi-publish2, name: Publish...}
-  location: "@engines.tk-nuke.location"
+  location: "@engines.tk-unreal.location"
 
-settings.tk-unnreal.shot_step:
+settings.tk-unreal.shot_step:
   apps:
     tk-multi-about:
       location: "@apps.tk-multi-about.location"
