@@ -196,10 +196,13 @@ class BasicSceneCollector(HookBaseClass):
         :returns: The main item that was created, or None if no item was created
             for the supplied path
         """
-
-        import subprocess
-        subprocess.run(['setx', 'WONJIN_COLLECTOR', 'WONJIN_COLLECTOR'])
-        self.logger.info("Set WONJIN_COLLECTOR system environment variable")
+        # Set WONJIN_COLLECTOR environment variable
+        if 'WONJIN_COLLECTOR' in os.environ:
+            os.environ['WONJIN_COLLECTOR'] += os.pathsep + 'WONJIN_COLLECTOR'
+        else:
+            os.environ['WONJIN_COLLECTOR'] = 'WONJIN_COLLECTOR'
+        
+        self.logger.debug("Updated WONJIN_COLLECTOR environment variable")
         
         publish_templates_setting = settings.get("Publish Templates")
         publish_templates = {}
