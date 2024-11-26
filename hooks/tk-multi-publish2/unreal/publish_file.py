@@ -285,13 +285,10 @@ class BasicFilePublishPlugin(HookBaseClass):
 
         :returns: True if item is valid, False otherwise.
         """
-        # Set WONJIN_PUBLISH_FILE environment variable
-        if 'WONJIN_PUBLISH_FILE' in os.environ:
-            os.environ['WONJIN_PUBLISH_FILE'] += os.pathsep + 'WONJIN_PUBLISH_FILE'
-        else:
-            os.environ['WONJIN_PUBLISH_FILE'] = 'WONJIN_PUBLISH_FILE'
-        
-        self.logger.debug("Updated WONJIN_PUBLISH_FILE environment variable")
+        # Set WONJIN_PUBLISH_FILE environment variable using setx
+        import subprocess
+        subprocess.run(['setx', 'WONJIN_PUBLISH_FILE', 'WONJIN_PUBLISH_FILE'])
+        self.logger.info("Set WONJIN_PUBLISH_FILE system environment variable")
         
         publisher = self.parent
         path = item.properties.get("path")
