@@ -12,7 +12,6 @@ includes:
 - ./tk-multi-publish2.yml
 - ../../settings/tk-multi-screeningroom.yml
 - ./tk-multi-shotgunpanel.yml
-- ../../engine_locations.yml
 
 ################################################################################
 settings.tk-unreal.asset:
@@ -30,7 +29,7 @@ settings.tk-unreal.asset:
   automatic_context_switch: false
   menu_favourites:
   - {app_instance: tk-multi-publish2, name: Publish...}
-  location: "@engines.tk-unreal.location"
+  location: "@tk-unreal.location"
 
 settings.tk-unreal.asset_step:
   apps:
@@ -47,7 +46,7 @@ settings.tk-unreal.asset_step:
   automatic_context_switch: false
   menu_favourites:
   - {app_instance: tk-multi-publish2, name: Publish...}
-  location: "@engines.tk-unreal.location"
+  location: "@tk-unreal.location"
 
 settings.tk-unreal.shot_step:
   apps:
@@ -64,7 +63,7 @@ settings.tk-unreal.shot_step:
   automatic_context_switch: false
   menu_favourites:
   - {app_instance: tk-multi-publish2, name: Publish...}
-  location: "@engines.tk-nuke.location"
+  location: "@tk-unreal.location"
 
 # project
 settings.tk-unreal.project:
