@@ -14,7 +14,7 @@ includes:
 - ./tk-multi-shotgunpanel.yml
 
 ################################################################################
-settings.tk-nuke.asset:
+settings.tk-unreal.asset:
   apps:
     tk-multi-about:
       location: "@apps.tk-multi-about.location"
@@ -31,7 +31,7 @@ settings.tk-nuke.asset:
   - {app_instance: tk-multi-publish2, name: Publish...}
   location: "@engines.tk-nuke.location"
 
-settings.tk-nuke.asset_step:
+settings.tk-unreal.asset_step:
   apps:
     tk-multi-about:
       location: "@apps.tk-multi-about.location"
@@ -64,7 +64,7 @@ settings.tk-unnreal.shot_step:
   menu_favourites:
   - {app_instance: tk-multi-publish2, name: Publish...}
   location: "@engines.tk-nuke.location"
-  
+
 # project
 settings.tk-unreal.project:
   apps:
